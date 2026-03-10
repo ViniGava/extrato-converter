@@ -657,7 +657,7 @@ async function processDemo(file) {
     ? parseTransactionsFromText(pdfText)
     : generateDemoTransactions();
   
-  const bank = detectBank(pdfText) || 'Banco Demo';
+  const bank = detectBank(pdfText, file.name) || 'Banco Desconhecido';
   const summary = calculateSummary(transactions);
   
   // Setup download buttons for client-side generation
