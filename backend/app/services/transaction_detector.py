@@ -59,6 +59,17 @@ def parse_date(date_str: str) -> Optional[date]:
             return datetime.strptime(date_str.strip(), fmt).date()
         except ValueError:
             continue
+
+    # Formato DD/MM sem ano (ex: Itaú)
+    short = re.match(r"^(\d{2})[/.](\d{2})$", date_str.strip())
+    if short:
+        day, month = int(short.group(1)), int(short.group(2))
+        year = year_hint or (datetime.now().year - 1 if month > datetime.now().month else datetime.now().year)
+        try:
+            return date(year, month, day)
+        except ValueError:
+            pass
+    
     return None
 
 
@@ -279,8 +290,57 @@ class TransactionDetector:
         return transactions or self._parse_generic(text)
 
     def _parse_itau(self, text: str) -> List[Transaction]:
-        """Parser para extratos Itaú."""
-        return self._parse_generic(text)
+        """Parser específico para extratos Itaú (formato DD/MM sem ano)."""
+        transactions = []
+        lines = text.split("\n")
+    
+        # Detecta o ano do extrato pelo cabeçalho (ex: "01/07/2025" ou "jul/2025")
+        year_hint = datetime.now().year
+        year_match = re.search(r"\b(\d{4})\b", text[:500])
+        if year_match:
+            year_hint = int(year_match.group(1))
+    
+        # Padrão Itaú: DD/MM  DESCRIÇÃO  VALOR- ou VALOR
+        # Ex: 03/07 DA VIVO-SP 04321378744  35,75-
+        pattern = re.compile(
+            r"^(\d{2}/\d{2})"           # Data DD/MM
+            r"\s+"
+            r"(.+?)"                     # Descrição
+            r"\s+"
+            r"([\d.]+,\d{2})"           # Valor (sem sinal)
+            r"(-?)\s*$"                  # Sinal negativo no final (opcional)
+        )
+    
+        for line in lines:
+            line = line.strip()
+            match = pattern.match(line)
+            if not match:
+                continue
+        
+            date_str, desc, value_str, sign = match.groups()
+        
+            parsed_date = parse_date(date_str, year_hint=year_hint)
+            if not parsed_date:
+                continue
+        
+            value = parse_money(value_str)
+            if value == 0:
+                continue
+        
+            # No Itaú: "-" no final = débito
+            is_debit = sign == "-" or any(
+                kw in desc.lower() for kw in
+                ["pix enviado", "saque", "boleto pago", "sispag", "tarifa", "iof", "da "]
+            )
+        
+            transactions.append(Transaction(
+                data=parsed_date,
+                descricao=desc.strip()[:200],
+                valor=value,
+                tipo="debit" if is_debit else "credit",
+            ))
+    
+    return transactions or self._parse_generic(text)
 
     def _parse_bradesco(self, text: str) -> List[Transaction]:
         """Parser para extratos Bradesco."""
