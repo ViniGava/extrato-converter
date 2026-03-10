@@ -650,14 +650,16 @@ async function processDemo(file) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     pdfText = await extractPDFText(arrayBuffer);
-    console.log('TEXTO EXTRAÍDO:', pdfText.slice(0, 500));
-    console.log('BANCO DETECTADO:', detectBank(pdfText, file.name));
-  } catch(e) {}
-  
-  // Generate demo transactions
+  } catch(e) {
+    console.log('ERRO ao extrair PDF:', e);
+  }
+
+  console.log('TAMANHO DO TEXTO:', pdfText.length);
+  console.log('TEXTO:', pdfText.slice(0, 300));
+
   const transactions = pdfText.length > 200
-    ? parseTransactionsFromText(pdfText)
-    : generateDemoTransactions();
+  ? parseTransactionsFromText(pdfText)
+  : generateDemoTransactions();
   
   const bank = detectBank(pdfText, file.name) || 'Banco Desconhecido';
   const summary = calculateSummary(transactions);
