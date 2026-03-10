@@ -581,7 +581,7 @@ async function handleFile(file) {
   document.getElementById('proc-filename').textContent = file.name;
   
   // Try backend first
-  const backendUrl = window.BACKEND_URL || 'extrato-converter-production.up.railway.app';
+  const backendUrl = window.BACKEND_URL || 'https://extrato-converter-production.up.railway.app';
   
   try {
     // Check if backend is available
@@ -650,6 +650,8 @@ async function processDemo(file) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     pdfText = await extractPDFText(arrayBuffer);
+    console.log('TEXTO EXTRAÍDO:', pdfText.slice(0, 500));
+    console.log('BANCO DETECTADO:', detectBank(pdfText, file.name));
   } catch(e) {}
   
   // Generate demo transactions
