@@ -581,7 +581,7 @@ async function handleFile(file) {
   document.getElementById('proc-filename').textContent = file.name;
   
   // Try backend first
-  const backendUrl = window.BACKEND_URL || 'http://localhost:8000';
+  const backendUrl = window.BACKEND_URL || 'extrato-converter-production.up.railway.app';
   
   try {
     // Check if backend is available
@@ -709,7 +709,7 @@ function parseTransactionsFromText(text) {
   const transactions = [];
   const lines = text.split(/\n|\r|\s{3,}/);
   
-  const datePattern = /(\d{2}[\/\.\-]\d{2}[\/\.\-]\d{2,4})/;
+  const datePattern = /(\d{2}[\/\.\-]\d{2}(?:[\/\.\-]\d{2,4})?)/;
   const moneyPattern = /([+-]?\s*R?\$?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2})/;
   
   for (const line of lines) {
@@ -741,8 +741,10 @@ function parseTransactionsFromText(text) {
   return transactions.length > 2 ? transactions : generateDemoTransactions();
 }
 
-function parseDate(str) {
+function parseDate(str, yearHint = null) {
   const parts = str.split(/[\/\.\-]/);
+
+  // Formato completo: DD/MM/AAAA ou DD/MM/AA
   if (parts.length === 3) {
     const [a, b, c] = parts;
     if (c.length === 4) return `${c}-${b.padStart(2,'0')}-${a.padStart(2,'0')}`;
@@ -750,7 +752,25 @@ function parseDate(str) {
     const year = parseInt(c) + 2000;
     return `${year}-${b.padStart(2,'0')}-${a.padStart(2,'0')}`;
   }
+
+  // Formato curto: DD/MM (Itaú e outros)
+  if (parts.length === 2) {
+    const [day, month] = parts;
+    const year = yearHint || guessYear(parseInt(month));
+    return `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`;
+  }
+
   return new Date().toISOString().slice(0,10);
+}
+
+// Adicionando função auxiliar — coloque logo após parseDate:
+function guessYear(month) {
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1; // 1-12
+  const currentYear = now.getFullYear();
+  // Se o mês do extrato é maior que o mês atual, provavelmente é ano passado
+  if (month > currentMonth) return currentYear - 1;
+  return currentYear;
 }
 
 function categorize(desc) {
